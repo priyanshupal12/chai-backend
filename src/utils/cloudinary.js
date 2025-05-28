@@ -14,18 +14,18 @@ cloudinary.config({
 });
 
 // Upload a file
-const uploadOnCloudinary = async (filePath) => {
+const uploadOnCloudinary = async (localFilePath) => {
     try {
-        if (!filePath) return "File path is required for upload.";
+        if (!localFilePath) return "File path is required for upload.";
 
-        const response = await cloudinary.uploader.upload(filePath, {
+        const response = await cloudinary.uploader.upload(localFilePath, {
             resource_type: "auto", // Automatically detect the resource type (image, video, etc.)
         });
         console.log("File uploaded successfully:", response.url);
         return response;
     }
     catch (error) {
-        fs.unlinkSync(filePath); // Delete the file if upload fails
+        fs.unlinkSync(localFilePath); // Delete the file if upload fails
         return null
     }
 }
