@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js"; // Assuming you have a User model defined
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import fs from "fs";
 
 const registerUser = asyncHandler(async (req, res) => {
     // Simulate user registration logic
@@ -16,7 +17,7 @@ const registerUser = asyncHandler(async (req, res) => {
     //check for user creation 
     //return response
 
-    const {fullName, email, username, password} = req.body
+    const { fullName, email, username, password } = req.body
     console.log("email", email);
 
 
@@ -26,26 +27,34 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All fields are required.");
     }
 
-    const existingUser = User.findOne({ 
-    $or: [{ username }, { email }]
+    const existedUser = await User.findOne({
+        $or: [{ username }, { email }]
     })
 
-    if (existingUser) {
+    if (existedUser) {
         throw new ApiError(409, "Username or email already exists.");
     }
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalpath = req.files?.coverImage[0]?.path;
+
+    // const coverImageLocalpath = req.files?.coverImage[0]?.path;
+
+    let coverImageLocalpath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalpath = req.files.coverImage[0].path;
+    }
 
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar image is required.");
     }
 
-    const avatar = await uploadOnCloudinary(avatarLocalPath)
-    const coverImage = await uploadOnCloudinary(coverImageLocalpath)    
 
-    if (!avatar){
-        throw new ApiError(500, "Failed to upload avatar image.");
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalpath)
+
+    if (!avatar) {
+        throw new ApiError(400, "avatar file is required.");
     }
 
     const user = await User.create({
