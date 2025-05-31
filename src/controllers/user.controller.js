@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js"; // Assuming you have a User model defined
-import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
@@ -214,16 +214,16 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 );
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
-    const { oldPassword, newpassword } = req.body
+    const { oldPassword, newPassword } = req.body
 
-    const user = await req.user.findById(req.user?._id)
+    const user = await User.findById(req.user?._id)
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
 
     if (!isPasswordCorrect) {
         throw new ApiError(400, "Old password is incorrect.");
     }
 
-    user.password = newpassword;
+    user.password = newPassword;
     await user.save({ validateBeforeSave: false });
 
     return res.status(200).json(
@@ -232,9 +232,11 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-    return res.status(200).json(
-        200, req.user, "Current user fetched successfully."
-    )
+    return res.status(200).json(new ApiResponse(
+        200,
+        req.user,
+        "User fetched successfully"
+    ))
 });
 
 const updateAccoutDetails = asyncHandler(async (req, res) => {
@@ -273,7 +275,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Failed to upload avatar image.");
     }
 
-    const user = await user.findByIdAndUpdate(req.user?._id,
+    const user = await User.findByIdAndUpdate(req.user?._id,
         {
             $set: {
                 avatar: avatar.url
@@ -301,7 +303,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     }
 
 
-    const user = await user.findByIdAndUpdate(req.user?._id,
+    const user = await User.findByIdAndUpdate(req.user?._id,
         {
             $set: {
                 coverImage: coverImage.url
