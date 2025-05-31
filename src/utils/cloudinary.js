@@ -47,4 +47,30 @@ const uploadOnCloudinary = async (localFilePath) => {
     }
 }
 
-export { uploadOnCloudinary };
+// const deleteFromCloudinary = async (puclic_id) => {
+//     try {
+//         if (!puclic_id) return null;
+
+//         console.log("Deleting file from Cloudinary:", puclic_id);
+
+//         const response = await cloudinary.uploader.destroy(puclic_id, {
+//             resource_type: "auto"
+//         });
+
+//         if (response.result !== 'ok') {
+//             throw new Error("Failed to delete file from Cloudinary.");
+//         }
+
+//         console.log("File deleted successfully from Cloudinary:", puclic_id);
+
+
+//         return response;
+
+//     } catch (error) {
+//         console.error("❌ Cloudinary delete error:", error.message || error);
+//         return null;
+        
+//     }
+// }
+
+export { uploadOnCloudinary, deleteFromCloudinary };
