@@ -12,16 +12,15 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query
     //TODO: get all videos based on query, sort, pagination
 
-    if (sortType == 'asc') sortType = 1;
-    else if (sortBy == 'desc') sortBy = -1
-    else sortBy = -1
+    let sortDirection = -1; // default descending
+    if (sortType === 'asc') sortDirection = 1;
+    const sortField = sortBy || "createdAt";
 
-    if (!sortBy) sortBy = "createdAt";
     if (!query) throw new ApiError(400, "query is required")
-    if (!userId)
-        if (isValidObjectId(userId)) throw new ApiError(400, "invalid userId");
+    if (userId && !isValidObjectId(userId))
+        throw new ApiError(400, "invalid userId");
 
-    const user = userId || req.user._id;
+    const user = userId;
 
     const aggregate = Video.aggregate([
         {
@@ -38,7 +37,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         },
         {
             $sort: {
-                [sortBy]: sortType
+                [sortField]: sortDirection
             }
         }
     ]);
@@ -50,16 +49,10 @@ const getAllVideos = asyncHandler(async (req, res) => {
     };
     const options = { page, limit, customLabels: myCustomLabels };
 
-    await Video.aggregatePaginate(aggregate, options)
-        .than(function (data) {
-            return res.status(200)
-                .json(new ApiResponse(200, data, "got all video successfully"));
-        })
-        .catch(function (error) {
-            console.log(error);
-
-        })
+    const video = await Video.aggregatePaginate(aggregate, options);
+    res.status(200).json(new ApiResponse(200, "got all video successfully", video));
 })
+
 
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body
@@ -126,8 +119,8 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Video not found");
     }
 
-    res.status(201).json(
-        new ApiResponse(200, data, "Video retrieved successfully", video)
+    res.status(200).json(
+        new ApiResponse(200, "Video retrieved successfully", video)
     )
 })
 
@@ -140,30 +133,30 @@ const updateVideo = asyncHandler(async (req, res) => {
     }
 
     const { title, description } = req.body;
-    const thumbnail = req.files.thumbnail[0]?.path;
+    const thumbnail = req.file?.path;
 
+    const updateData = {};
     if (title || description || thumbnail) {
-        const updateData = {};
         if (title) updateData.title = title;
         if (description) updateData.description = description;
         if (thumbnail) {
-            const thumbnailurlUpload = await uploadOnCloudinary(thumbnail);
-            if (!thumbnailurlUpload) {
-                throw new ApiError(500, "Failed to upload thumbnail to cloudinary");
+            try {
+                const thumbnailurlUpload = await uploadOnCloudinary(thumbnail);
+                if (!thumbnailurlUpload) {
+                    throw new ApiError(500, "Failed to upload thumbnail to cloudinary");
+                }
+                updateData.thumbnail = thumbnailurlUpload.url;
+            } catch (error) {
+                throw new ApiError(500, "faild to upload thumbnail on cloudinary while video updating")
             }
-            updateData.thumbnail = thumbnailurlUpload.url;
         }
     } else {
         throw new ApiError(400, "At least one field (title, description, thumbnail) is required for update");
     }
 
     const video = await Video.findByIdAndUpdate(videoId, {
-        $set: {
-            title,
-            description,
-            thumbnail: updateData.thumbnail
-        }
-    }, {new: true})
+        $set: updateData
+    }, { new: true })
 
     if (!video) {
         throw new ApiError(400, "video not found or failed to update");
@@ -200,11 +193,12 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     if (!video) {
         throw new ApiError(404, "Video not found");
     }
-    
-    const isPublished = video.isPublished;
+
+    video.isPublished = !video.isPublished;
+    await video.save();
 
     res.status(200).json(
-        new ApiResponse(200, { isPublished: isPublished }, "Video publish status toggled successfully")
+        new ApiResponse(200, { isPublished: video.isPublished }, "Video publish status toggled successfully")
     )
 })
 
